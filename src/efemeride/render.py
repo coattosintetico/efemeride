@@ -4,7 +4,8 @@ from pathlib import Path
 
 import drawsvg as draw
 
-from efemeride.core import BodyPoint, SkyChart, StarPoint
+from efemeride.core import SkyChart
+from efemeride.effects import EffectParams, apply_effects
 
 SVG_SIZE = 800
 SVG_CENTER = SVG_SIZE / 2
@@ -24,6 +25,10 @@ MOON_STYLE = {"color": "#d0d0d0", "radius": 10}
 
 MAG_BASE = 4.0
 MAG_OFFSET = 2.0
+
+CONSTELLATION_STROKE = "#1a3a5c"
+CONSTELLATION_STROKE_WIDTH = 0.6
+CONSTELLATION_LABEL_COLOR = "rgba(255,255,255,0.3)"
 
 
 def norm_to_px(x: float, y: float) -> tuple[float, float]:
@@ -69,6 +74,28 @@ def render_chart(chart: SkyChart, title: str) -> str:
                        fill="#778", font_family="sans-serif",
                        text_anchor="middle"))
 
+    # Constellation lines and labels
+    for constellation in chart.constellations:
+        if not constellation.segments:
+            continue
+        all_x: list[float] = []
+        all_y: list[float] = []
+        for seg in constellation.segments:
+            px1, py1 = norm_to_px(seg.x1, seg.y1)
+            px2, py2 = norm_to_px(seg.x2, seg.y2)
+            d.append(draw.Line(px1, py1, px2, py2,
+                               stroke=CONSTELLATION_STROKE,
+                               stroke_width=CONSTELLATION_STROKE_WIDTH))
+            all_x.extend([px1, px2])
+            all_y.extend([py1, py2])
+        cx = sum(all_x) / len(all_x)
+        cy = sum(all_y) / len(all_y)
+        d.append(draw.Text(constellation.abbr, 9, cx, cy,
+                           fill=CONSTELLATION_LABEL_COLOR,
+                           font_family="sans-serif",
+                           text_anchor="middle",
+                           dominant_baseline="middle"))
+
     # Stars
     for star in chart.stars:
         px, py = norm_to_px(star.x, star.y)
@@ -92,6 +119,7 @@ def render_charts(
     nonvisible: SkyChart,
     output_dir: Path,
     timestamp: str,
+    effects: EffectParams | None = None,
 ) -> tuple[Path, Path]:
     """Write both SVG charts to output_dir and return their paths."""
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -99,7 +127,7 @@ def render_charts(
     visible_path = output_dir / f"{timestamp}_visible.svg"
     nonvisible_path = output_dir / f"{timestamp}_non-visible.svg"
 
-    visible_path.write_text(render_chart(visible, "Visible sky"))
-    nonvisible_path.write_text(render_chart(nonvisible, "Non-visible sky"))
+    visible_path.write_text(apply_effects(render_chart(visible, "Visible sky"), effects))
+    nonvisible_path.write_text(apply_effects(render_chart(nonvisible, "Non-visible sky"), effects))
 
     return visible_path, nonvisible_path

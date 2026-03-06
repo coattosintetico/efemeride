@@ -28,9 +28,13 @@ lint:
 test:
     uv run pytest
 
-# Run the chart command with defaults
+# Run the chart command with defaults and open output in brave-browser
 run *args:
-    uv run efemeride {{args}}
+    uv run efemeride --open {{args}}
+
+# Open the last two generated SVGs in Brave
+open:
+    brave-browser $(ls -t output/*.svg | head -2 | tac) &
 
 # Clean build artifacts
 clean:

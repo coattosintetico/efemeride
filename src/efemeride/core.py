@@ -2,11 +2,14 @@
 
 import math
 from datetime import datetime
+from pathlib import Path
 
 import numpy as np
 from pydantic import BaseModel
 from skyfield.api import Loader, Star, wgs84
 from skyfield.data import hipparcos
+
+CONSTELLATIONSHIP_PATH = Path(__file__).parent / "data" / "constellationship.fab"
 
 
 class StarPoint(BaseModel):
@@ -21,9 +24,22 @@ class BodyPoint(BaseModel):
     y: float
 
 
+class ConstellationSegment(BaseModel):
+    x1: float
+    y1: float
+    x2: float
+    y2: float
+
+
+class Constellation(BaseModel):
+    abbr: str
+    segments: list[ConstellationSegment] = []
+
+
 class SkyChart(BaseModel):
     stars: list[StarPoint] = []
     bodies: list[BodyPoint] = []
+    constellations: list[Constellation] = []
 
 
 PLANETS = {
@@ -76,6 +92,119 @@ def stereographic_project_nonvisible(alt_deg: float, az_deg: float) -> tuple[flo
     return x, y
 
 
+def load_constellations() -> dict[str, list[tuple[int, int]]]:
+    """Parse constellationship.fab → dict mapping abbreviation to list of HIP ID pairs."""
+    constellations: dict[str, list[tuple[int, int]]] = {}
+    for line in CONSTELLATIONSHIP_PATH.read_text().splitlines():
+        parts = line.split()
+        if len(parts) < 4:
+            continue
+        abbr = parts[0]
+        num_segments = int(parts[1])
+        hip_ids = [int(x) for x in parts[2:]]
+        pairs = [(hip_ids[i], hip_ids[i + 1]) for i in range(0, num_segments * 2, 2)]
+        constellations[abbr] = pairs
+    return constellations
+
+
+def _compute_alt_az(
+    df, location, t, lat: float, lon: float
+) -> tuple[np.ndarray, np.ndarray]:
+    """Compute alt/az arrays for a DataFrame of Hipparcos stars."""
+    stars = Star.from_dataframe(df)
+    astrometric = location.at(t).observe(stars)
+    ra, dec, _ = astrometric.radec()
+
+    lst_deg = (t.gast * 15.0 + lon) % 360.0
+    ha = np.radians((lst_deg - ra.degrees) % 360.0)
+    d = np.radians(dec.degrees)
+    phi = math.radians(lat)
+
+    sin_alt = np.sin(phi) * np.sin(d) + np.cos(phi) * np.cos(d) * np.cos(ha)
+    alts_deg = np.degrees(np.arcsin(np.clip(sin_alt, -1.0, 1.0)))
+    azs_deg = np.degrees(
+        np.arctan2(
+            -np.cos(d) * np.sin(ha),
+            np.sin(d) * np.cos(phi) - np.cos(d) * np.cos(ha) * np.sin(phi),
+        )
+    ) % 360.0
+
+    return alts_deg, azs_deg
+
+
+def _compute_constellation_segments(
+    constellation_data: dict[str, list[tuple[int, int]]],
+    hip_df,
+    location,
+    t,
+    lat: float,
+    lon: float,
+) -> tuple[list[Constellation], list[Constellation]]:
+    """Compute constellation segments for visible and non-visible charts."""
+    # Collect all unique HIP IDs needed
+    all_hip_ids: set[int] = set()
+    for pairs in constellation_data.values():
+        for a, b in pairs:
+            all_hip_ids.add(a)
+            all_hip_ids.add(b)
+
+    # Filter hip_df to only constellation stars (index is HIP ID)
+    available_ids = hip_df.index.intersection(list(all_hip_ids))
+    const_df = hip_df.loc[available_ids]
+
+    if const_df.empty:
+        return [], []
+
+    # Compute positions
+    alts_deg, azs_deg = _compute_alt_az(const_df, location, t, lat, lon)
+
+    # Build lookup: HIP ID → (x_vis, y_vis, x_nonvis, y_nonvis, is_visible)
+    lookup: dict[int, tuple[float, float, float, float, bool]] = {}
+    for hip_id, alt_deg, az_deg in zip(const_df.index, alts_deg, azs_deg):
+        is_visible = alt_deg >= 0
+        if is_visible:
+            x, y = stereographic_project_visible(alt_deg, az_deg)
+            lookup[hip_id] = (x, y, 0.0, 0.0, True)
+        else:
+            x, y = stereographic_project_nonvisible(alt_deg, az_deg)
+            lookup[hip_id] = (0.0, 0.0, x, y, False)
+
+    visible_constellations: list[Constellation] = []
+    nonvisible_constellations: list[Constellation] = []
+
+    for abbr, pairs in constellation_data.items():
+        vis_segments: list[ConstellationSegment] = []
+        nonvis_segments: list[ConstellationSegment] = []
+
+        for hip_a, hip_b in pairs:
+            if hip_a not in lookup or hip_b not in lookup:
+                continue
+            a = lookup[hip_a]
+            b = lookup[hip_b]
+            # Skip horizon-crossing segments
+            if a[4] != b[4]:
+                continue
+            if a[4]:  # both visible
+                vis_segments.append(
+                    ConstellationSegment(x1=a[0], y1=a[1], x2=b[0], y2=b[1])
+                )
+            else:  # both non-visible
+                nonvis_segments.append(
+                    ConstellationSegment(x1=a[2], y1=a[3], x2=b[2], y2=b[3])
+                )
+
+        if vis_segments:
+            visible_constellations.append(
+                Constellation(abbr=abbr, segments=vis_segments)
+            )
+        if nonvis_segments:
+            nonvisible_constellations.append(
+                Constellation(abbr=abbr, segments=nonvis_segments)
+            )
+
+    return visible_constellations, nonvisible_constellations
+
+
 def compute_charts(
     lat: float, lon: float, dt: datetime, mag_limit: float
 ) -> tuple[SkyChart, SkyChart]:
@@ -124,24 +253,7 @@ def compute_charts(
     # Stars from Hipparcos
     df = hip_df.dropna(subset=["magnitude"])
     df = df[df["magnitude"] <= mag_limit]
-    stars = Star.from_dataframe(df)
-    astrometric = location.at(t).observe(stars)
-    ra, dec, _ = astrometric.radec()
-
-    # Manual alt/az to avoid .apparent() triggering buggy deflection on large arrays
-    lst_deg = (t.gast * 15.0 + lon) % 360.0
-    ha = np.radians((lst_deg - ra.degrees) % 360.0)
-    d = np.radians(dec.degrees)
-    phi = math.radians(lat)
-
-    sin_alt = np.sin(phi) * np.sin(d) + np.cos(phi) * np.cos(d) * np.cos(ha)
-    alts_deg = np.degrees(np.arcsin(np.clip(sin_alt, -1.0, 1.0)))
-    azs_deg = np.degrees(
-        np.arctan2(
-            -np.cos(d) * np.sin(ha),
-            np.sin(d) * np.cos(phi) - np.cos(d) * np.cos(ha) * np.sin(phi),
-        )
-    ) % 360.0
+    alts_deg, azs_deg = _compute_alt_az(df, location, t, lat, lon)
 
     for alt_deg, az_deg, mag in zip(alts_deg, azs_deg, df["magnitude"]):
         if alt_deg >= 0:
@@ -150,5 +262,13 @@ def compute_charts(
         else:
             x, y = stereographic_project_nonvisible(alt_deg, az_deg)
             nonvisible.stars.append(StarPoint(x=x, y=y, magnitude=mag))
+
+    # Constellations
+    constellation_data = load_constellations()
+    vis_const, nonvis_const = _compute_constellation_segments(
+        constellation_data, hip_df, location, t, lat, lon
+    )
+    visible.constellations = vis_const
+    nonvisible.constellations = nonvis_const
 
     return visible, nonvisible
