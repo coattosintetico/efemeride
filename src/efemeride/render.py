@@ -23,7 +23,10 @@ PLANET_STYLE: dict[str, dict] = {
 SUN_STYLE  = {"color": "#ffe033", "radius": 12}
 MOON_STYLE = {"color": "#d0d0d0", "radius": 10}
 
-MAG_BASE = 4.0
+# this value controls how big the stars are being rendered (proportionally)
+MAG_BASE = 10.0
+# this avoids negative, zero or too small denominators that would cause a blow up of the radius
+# (e.g. sirius has -1.46 mag)
 MAG_OFFSET = 2.0
 
 CONSTELLATION_STROKE = "#1a3a5c"
@@ -52,6 +55,8 @@ def _body_style(name: str) -> dict:
 
 def render_chart(chart: SkyChart, title: str) -> str:
     d = draw.Drawing(SVG_SIZE, SVG_SIZE)
+    d.width = "100%"
+    d.height = "100%"
 
     # Background
     d.append(draw.Rectangle(0, 0, SVG_SIZE, SVG_SIZE, fill="#0a0a1a"))

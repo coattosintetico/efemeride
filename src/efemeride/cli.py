@@ -26,16 +26,16 @@ def chart(
     lat: float = typer.Option(DEFAULT_LAT, help="Observer latitude"),
     lon: float = typer.Option(DEFAULT_LON, help="Observer longitude"),
     time: Optional[str] = typer.Option(None, help="ISO 8601 datetime string (default: now UTC)"),
-    mag_limit: float = typer.Option(6.5, help="Maximum (faintest) magnitude to include for stars"),
+    mag_limit: float = typer.Option(5.5, help="Maximum (faintest) magnitude to include for stars"),
     output: Path = typer.Option(Path("./output/"), "-o", help="Output directory"),
     open_browser: bool = typer.Option(False, "--open", help="Open output files in brave-browser"),
     # Visual effects
-    star_glow: float = typer.Option(0.0, help="Star glow blur radius (0=off, try 2-6)"),
-    body_glow: float = typer.Option(0.0, help="Body glow blur radius (0=off, try 3-8)"),
-    vignette: float = typer.Option(0.0, help="Edge vignette opacity (0=off, 0.3-0.7 typical)"),
-    star_soft_edge: float = typer.Option(0.0, help="Star radial fade edge opacity (0=off, 0.0-0.3 typical)"),
+    star_glow: float = typer.Option(3.0, help="Star glow blur radius (0=off, try 2-6)"),
+    body_glow: float = typer.Option(5.0, help="Body glow blur radius (0=off, try 3-8)"),
+    vignette: float = typer.Option(0.4, help="Edge vignette opacity (0=off, 0.3-0.7 typical)"),
+    star_soft_edge: float = typer.Option(0.15, help="Star radial fade edge opacity (0=off, 0.0-0.3 typical)"),
     scene_bloom: float = typer.Option(0.0, help="Full-scene bloom blur (0=off, try 1-3)"),
-    constellation_opacity: float = typer.Option(1.0, help="Constellation line opacity (1.0=unchanged, 0.3=subtle)"),
+    constellation_opacity: float = typer.Option(0.5, help="Constellation line opacity (1.0=unchanged, 0.3=subtle)"),
 ) -> None:
     """Generate SVG star charts for a given time and observer location."""
     dt = datetime.fromisoformat(time) if time else datetime.now(timezone.utc)

@@ -1,5 +1,6 @@
 """Core logic for efemeride."""
 
+import json
 import math
 from datetime import datetime
 from pathlib import Path
@@ -9,7 +10,8 @@ from pydantic import BaseModel
 from skyfield.api import Loader, Star, wgs84
 from skyfield.data import hipparcos
 
-CONSTELLATIONSHIP_PATH = Path(__file__).parent / "data" / "constellationship.fab"
+CONSTELLATIONS_DIR = Path(__file__).parent / "data" / "constellations"
+DEFAULT_SKYCULTURE = "modern_st"
 
 
 class StarPoint(BaseModel):
@@ -92,18 +94,21 @@ def stereographic_project_nonvisible(alt_deg: float, az_deg: float) -> tuple[flo
     return x, y
 
 
-def load_constellations() -> dict[str, list[tuple[int, int]]]:
-    """Parse constellationship.fab → dict mapping abbreviation to list of HIP ID pairs."""
+def load_constellations(
+    skyculture: str = DEFAULT_SKYCULTURE,
+) -> dict[str, list[tuple[int, int]]]:
+    """Parse a Stellarium skyculture JSON → dict mapping abbreviation to HIP ID pairs."""
+    path = CONSTELLATIONS_DIR / f"{skyculture}.json"
+    data = json.loads(path.read_text())
     constellations: dict[str, list[tuple[int, int]]] = {}
-    for line in CONSTELLATIONSHIP_PATH.read_text().splitlines():
-        parts = line.split()
-        if len(parts) < 4:
-            continue
-        abbr = parts[0]
-        num_segments = int(parts[1])
-        hip_ids = [int(x) for x in parts[2:]]
-        pairs = [(hip_ids[i], hip_ids[i + 1]) for i in range(0, num_segments * 2, 2)]
-        constellations[abbr] = pairs
+    for entry in data["constellations"]:
+        abbr = entry["id"].split()[-1]
+        pairs: list[tuple[int, int]] = []
+        for chain in entry.get("lines", []):
+            for i in range(len(chain) - 1):
+                pairs.append((chain[i], chain[i + 1]))
+        if pairs:
+            constellations[abbr] = pairs
     return constellations
 
 
