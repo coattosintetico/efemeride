@@ -1,0 +1,38 @@
+[project]
+name = "efemeride"
+version = "0.1.0"
+description = "A CLI tool to compute the astronomical ephemeris (precise location of the stars on the sky) at a given time, and generate an SVG of it."
+readme = "README.md"
+authors = [
+    { name = "coattosintetico", email = "msanchezgonzalez99@gmail.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "drawsvg>=2.4.1",
+    "pandas>=3.0.1",
+    "pydantic>=2.12.5",
+    "skyfield>=1.54",
+    "typer",
+]
+
+[project.scripts]
+efemeride = "efemeride.cli:main"
+
+[dependency-groups]
+dev = [
+    "pytest",
+    "ruff",
+]
+
+[build-system]
+requires = ["uv_build>=0.10.4,<0.11.0"]
+build-backend = "uv_build"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint]
+select = ["I"]

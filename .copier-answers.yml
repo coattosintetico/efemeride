@@ -1,0 +1,9 @@
+# Changes here will be overwritten by Copier
+_commit: 0.1.0
+_src_path: /home/kaneda/templates/python-typer-cli-template/
+author_email: msanchezgonzalez99@gmail.com
+author_name: coattosintetico
+min_python_version: '3.12'
+project_description: A CLI tool to compute the astronomical ephemeris (precise location
+    of the stars on the sky) at a given time, and generate an SVG of it.
+project_name: efemeride

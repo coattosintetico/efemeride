@@ -1,0 +1,23 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# Tool caches
+.ruff_cache/
+.pytest_cache/
+
+# Skyfield data files
+data/
+
+# Output folder for the SVGs
+output/
+
+# Documentation for libraries used
+.mirror-docs/
