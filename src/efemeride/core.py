@@ -112,9 +112,7 @@ def load_constellations(
     return constellations
 
 
-def _compute_alt_az(
-    df, location, t, lat: float, lon: float
-) -> tuple[np.ndarray, np.ndarray]:
+def _compute_alt_az(df, location, t, lat: float, lon: float) -> tuple[np.ndarray, np.ndarray]:
     """Compute alt/az arrays for a DataFrame of Hipparcos stars."""
     stars = Star.from_dataframe(df)
     astrometric = location.at(t).observe(stars)
@@ -127,12 +125,15 @@ def _compute_alt_az(
 
     sin_alt = np.sin(phi) * np.sin(d) + np.cos(phi) * np.cos(d) * np.cos(ha)
     alts_deg = np.degrees(np.arcsin(np.clip(sin_alt, -1.0, 1.0)))
-    azs_deg = np.degrees(
-        np.arctan2(
-            -np.cos(d) * np.sin(ha),
-            np.sin(d) * np.cos(phi) - np.cos(d) * np.cos(ha) * np.sin(phi),
+    azs_deg = (
+        np.degrees(
+            np.arctan2(
+                -np.cos(d) * np.sin(ha),
+                np.sin(d) * np.cos(phi) - np.cos(d) * np.cos(ha) * np.sin(phi),
+            )
         )
-    ) % 360.0
+        % 360.0
+    )
 
     return alts_deg, azs_deg
 
@@ -190,29 +191,19 @@ def _compute_constellation_segments(
             if a[4] != b[4]:
                 continue
             if a[4]:  # both visible
-                vis_segments.append(
-                    ConstellationSegment(x1=a[0], y1=a[1], x2=b[0], y2=b[1])
-                )
+                vis_segments.append(ConstellationSegment(x1=a[0], y1=a[1], x2=b[0], y2=b[1]))
             else:  # both non-visible
-                nonvis_segments.append(
-                    ConstellationSegment(x1=a[2], y1=a[3], x2=b[2], y2=b[3])
-                )
+                nonvis_segments.append(ConstellationSegment(x1=a[2], y1=a[3], x2=b[2], y2=b[3]))
 
         if vis_segments:
-            visible_constellations.append(
-                Constellation(abbr=abbr, segments=vis_segments)
-            )
+            visible_constellations.append(Constellation(abbr=abbr, segments=vis_segments))
         if nonvis_segments:
-            nonvisible_constellations.append(
-                Constellation(abbr=abbr, segments=nonvis_segments)
-            )
+            nonvisible_constellations.append(Constellation(abbr=abbr, segments=nonvis_segments))
 
     return visible_constellations, nonvisible_constellations
 
 
-def compute_charts(
-    lat: float, lon: float, dt: datetime, mag_limit: float
-) -> tuple[SkyChart, SkyChart]:
+def compute_charts(lat: float, lon: float, dt: datetime, mag_limit: float) -> tuple[SkyChart, SkyChart]:
     """Compute visible and non-visible sky charts for the given observer and time."""
     loader = get_loader()
     eph = load_ephemeris(loader)
@@ -270,9 +261,7 @@ def compute_charts(
 
     # Constellations
     constellation_data = load_constellations()
-    vis_const, nonvis_const = _compute_constellation_segments(
-        constellation_data, hip_df, location, t, lat, lon
-    )
+    vis_const, nonvis_const = _compute_constellation_segments(constellation_data, hip_df, location, t, lat, lon)
     visible.constellations = vis_const
     nonvisible.constellations = nonvis_const
 

@@ -74,13 +74,19 @@ def _get_or_create_defs(root: ET.Element) -> ET.Element:
 # Individual effect applicators
 # ---------------------------------------------------------------------------
 
+
 def _apply_star_glow(root: ET.Element, defs: ET.Element, std_dev: float) -> None:
     """Add a glow filter and apply it to star circles (small white circles)."""
-    filt = ET.SubElement(defs, "filter", id="starGlow", x="-50%", y="-50%",
-                         width="200%", height="200%")
-    ET.SubElement(filt, "feGaussianBlur", attrib={
-        "in": "SourceGraphic", "stdDeviation": str(std_dev), "result": "blur",
-    })
+    filt = ET.SubElement(defs, "filter", id="starGlow", x="-50%", y="-50%", width="200%", height="200%")
+    ET.SubElement(
+        filt,
+        "feGaussianBlur",
+        attrib={
+            "in": "SourceGraphic",
+            "stdDeviation": str(std_dev),
+            "result": "blur",
+        },
+    )
     merge = ET.SubElement(filt, "feMerge")
     ET.SubElement(merge, "feMergeNode", attrib={"in": "blur"})
     ET.SubElement(merge, "feMergeNode", attrib={"in": "SourceGraphic"})
@@ -94,11 +100,16 @@ def _apply_star_glow(root: ET.Element, defs: ET.Element, std_dev: float) -> None
 
 def _apply_body_glow(root: ET.Element, defs: ET.Element, std_dev: float) -> None:
     """Add a glow filter for solar-system bodies."""
-    filt = ET.SubElement(defs, "filter", id="bodyGlow", x="-50%", y="-50%",
-                         width="200%", height="200%")
-    ET.SubElement(filt, "feGaussianBlur", attrib={
-        "in": "SourceGraphic", "stdDeviation": str(std_dev), "result": "blur",
-    })
+    filt = ET.SubElement(defs, "filter", id="bodyGlow", x="-50%", y="-50%", width="200%", height="200%")
+    ET.SubElement(
+        filt,
+        "feGaussianBlur",
+        attrib={
+            "in": "SourceGraphic",
+            "stdDeviation": str(std_dev),
+            "result": "blur",
+        },
+    )
     merge = ET.SubElement(filt, "feMerge")
     ET.SubElement(merge, "feMergeNode", attrib={"in": "blur"})
     ET.SubElement(merge, "feMergeNode", attrib={"in": "SourceGraphic"})
@@ -115,21 +126,29 @@ def _apply_body_glow(root: ET.Element, defs: ET.Element, std_dev: float) -> None
 def _apply_vignette(root: ET.Element, defs: ET.Element, opacity: float) -> None:
     """Overlay a radial gradient that darkens the edges of the chart."""
     grad = ET.SubElement(defs, "radialGradient", id="vignette")
-    ET.SubElement(grad, "stop", offset="60%", attrib={
-        "stop-color": "transparent",
-    })
-    ET.SubElement(grad, "stop", offset="100%", attrib={
-        "stop-color": f"rgba(0,0,0,{opacity})",
-    })
+    ET.SubElement(
+        grad,
+        "stop",
+        offset="60%",
+        attrib={
+            "stop-color": "transparent",
+        },
+    )
+    ET.SubElement(
+        grad,
+        "stop",
+        offset="100%",
+        attrib={
+            "stop-color": f"rgba(0,0,0,{opacity})",
+        },
+    )
 
     # Find the first rectangle (background) to get dimensions.
     rect = root.find(".//{http://www.w3.org/2000/svg}rect")
     if rect is not None:
         w = rect.get("width", "800")
         h = rect.get("height", "800")
-        vignette_rect = ET.SubElement(root, "rect", x="0", y="0",
-                                       width=w, height=h,
-                                       fill="url(#vignette)")
+        vignette_rect = ET.SubElement(root, "rect", x="0", y="0", width=w, height=h, fill="url(#vignette)")
         # Insert right after background rect.
         root.remove(vignette_rect)
         idx = list(root).index(rect)
@@ -139,12 +158,24 @@ def _apply_vignette(root: ET.Element, defs: ET.Element, opacity: float) -> None:
 def _apply_star_soft_edge(root: ET.Element, defs: ET.Element, edge_opacity: float) -> None:
     """Replace flat star fills with a radial gradient (bright center, fading edge)."""
     grad = ET.SubElement(defs, "radialGradient", id="starSoft")
-    ET.SubElement(grad, "stop", offset="0%", attrib={
-        "stop-color": "#ffffff", "stop-opacity": "1",
-    })
-    ET.SubElement(grad, "stop", offset="100%", attrib={
-        "stop-color": "#ffffff", "stop-opacity": str(edge_opacity),
-    })
+    ET.SubElement(
+        grad,
+        "stop",
+        offset="0%",
+        attrib={
+            "stop-color": "#ffffff",
+            "stop-opacity": "1",
+        },
+    )
+    ET.SubElement(
+        grad,
+        "stop",
+        offset="100%",
+        attrib={
+            "stop-color": "#ffffff",
+            "stop-opacity": str(edge_opacity),
+        },
+    )
 
     for circle in root.iter("{http://www.w3.org/2000/svg}circle"):
         if circle.get("fill") == "#ffffff" and float(circle.get("r", "0")) < 10:
@@ -153,14 +184,25 @@ def _apply_star_soft_edge(root: ET.Element, defs: ET.Element, edge_opacity: floa
 
 def _apply_scene_bloom(root: ET.Element, defs: ET.Element, std_dev: float) -> None:
     """Apply a subtle full-scene bloom (blur + screen composite)."""
-    filt = ET.SubElement(defs, "filter", id="sceneBloom", x="0", y="0",
-                         width="100%", height="100%")
-    ET.SubElement(filt, "feGaussianBlur", attrib={
-        "in": "SourceGraphic", "stdDeviation": str(std_dev), "result": "bloom",
-    })
-    ET.SubElement(filt, "feBlend", attrib={
-        "in": "SourceGraphic", "in2": "bloom", "mode": "screen",
-    })
+    filt = ET.SubElement(defs, "filter", id="sceneBloom", x="0", y="0", width="100%", height="100%")
+    ET.SubElement(
+        filt,
+        "feGaussianBlur",
+        attrib={
+            "in": "SourceGraphic",
+            "stdDeviation": str(std_dev),
+            "result": "bloom",
+        },
+    )
+    ET.SubElement(
+        filt,
+        "feBlend",
+        attrib={
+            "in": "SourceGraphic",
+            "in2": "bloom",
+            "mode": "screen",
+        },
+    )
 
     # Wrap all existing children in a <g> with the filter.
     g = ET.Element("g", filter="url(#sceneBloom)")
@@ -185,6 +227,7 @@ def _apply_constellation_opacity(root: ET.Element, opacity: float) -> None:
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
+
 
 def apply_effects(svg_text: str, params: EffectParams | None = None) -> str:
     """Apply visual effects to an SVG string and return the modified SVG.
