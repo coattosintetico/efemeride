@@ -38,10 +38,21 @@ class Constellation(BaseModel):
     segments: list[ConstellationSegment] = []
 
 
+class GridArc(BaseModel):
+    points: list[tuple[float, float]]
+
+
+class GridCircle(BaseModel):
+    declination: float
+    label: str
+    arcs: list[GridArc]
+
+
 class SkyChart(BaseModel):
     stars: list[StarPoint] = []
     bodies: list[BodyPoint] = []
     constellations: list[Constellation] = []
+    grid_circles: list[GridCircle] = []
 
 
 PLANETS = {
@@ -203,7 +214,94 @@ def _compute_constellation_segments(
     return visible_constellations, nonvisible_constellations
 
 
-def compute_charts(lat: float, lon: float, dt: datetime, mag_limit: float) -> tuple[SkyChart, SkyChart]:
+def _compute_declination_circles(
+    declinations: list[float],
+    lat: float,
+    lon: float,
+    lst_deg: float,
+    num_samples: int = 360,
+) -> tuple[list[GridCircle], list[GridCircle]]:
+    """Compute projected declination circles for visible and non-visible charts."""
+    phi = math.radians(lat)
+    ra_samples = np.linspace(0, 360, num_samples, endpoint=False)
+
+    visible_circles: list[GridCircle] = []
+    nonvisible_circles: list[GridCircle] = []
+
+    for dec in declinations:
+        d = math.radians(dec)
+        ha = np.radians((lst_deg - ra_samples) % 360.0)
+        sin_alt = math.sin(phi) * math.sin(d) + math.cos(phi) * math.cos(d) * np.cos(ha)
+        alts = np.degrees(np.arcsin(np.clip(sin_alt, -1.0, 1.0)))
+        azs = (
+            np.degrees(
+                np.arctan2(
+                    -math.cos(d) * np.sin(ha),
+                    math.sin(d) * math.cos(phi) - math.cos(d) * np.cos(ha) * math.sin(phi),
+                )
+            )
+            % 360.0
+        )
+
+        # Split into arcs by horizon crossing
+        vis_points: list[list[tuple[float, float]]] = []
+        nonvis_points: list[list[tuple[float, float]]] = []
+        cur_vis: list[tuple[float, float]] = []
+        cur_nonvis: list[tuple[float, float]] = []
+
+        for alt, az in zip(alts, azs):
+            if alt >= 0:
+                x, y = stereographic_project_visible(float(alt), float(az))
+                cur_vis.append((x, y))
+                if cur_nonvis:
+                    nonvis_points.append(cur_nonvis)
+                    cur_nonvis = []
+            else:
+                x, y = stereographic_project_nonvisible(float(alt), float(az))
+                cur_nonvis.append((x, y))
+                if cur_vis:
+                    vis_points.append(cur_vis)
+                    cur_vis = []
+
+        if cur_vis:
+            vis_points.append(cur_vis)
+        if cur_nonvis:
+            nonvis_points.append(cur_nonvis)
+
+        # Merge wrap-around: first and last RA samples are adjacent,
+        # so if both are on the same side of the horizon, join arcs.
+        if len(vis_points) >= 2 and alts[0] >= 0 and alts[-1] >= 0:
+            vis_points[0] = vis_points[-1] + vis_points[0]
+            vis_points.pop()
+        if len(nonvis_points) >= 2 and alts[0] < 0 and alts[-1] < 0:
+            nonvis_points[0] = nonvis_points[-1] + nonvis_points[0]
+            nonvis_points.pop()
+
+        label = "0° (eq)" if dec == 0 else f"{dec:+.0f}°"
+
+        if vis_points:
+            visible_circles.append(
+                GridCircle(
+                    declination=dec,
+                    label=label,
+                    arcs=[GridArc(points=pts) for pts in vis_points],
+                )
+            )
+        if nonvis_points:
+            nonvisible_circles.append(
+                GridCircle(
+                    declination=dec,
+                    label=label,
+                    arcs=[GridArc(points=pts) for pts in nonvis_points],
+                )
+            )
+
+    return visible_circles, nonvisible_circles
+
+
+def compute_charts(
+    lat: float, lon: float, dt: datetime, mag_limit: float, declinations: list[float] | None = None
+) -> tuple[SkyChart, SkyChart]:
     """Compute visible and non-visible sky charts for the given observer and time."""
     loader = get_loader()
     eph = load_ephemeris(loader)
@@ -264,5 +362,12 @@ def compute_charts(lat: float, lon: float, dt: datetime, mag_limit: float) -> tu
     vis_const, nonvis_const = _compute_constellation_segments(constellation_data, hip_df, location, t, lat, lon)
     visible.constellations = vis_const
     nonvisible.constellations = nonvis_const
+
+    # Declination grid
+    if declinations:
+        lst_deg = (t.gast * 15.0 + lon) % 360.0
+        vis_grid, nonvis_grid = _compute_declination_circles(declinations, lat, lon, lst_deg)
+        visible.grid_circles = vis_grid
+        nonvisible.grid_circles = nonvis_grid
 
     return visible, nonvisible

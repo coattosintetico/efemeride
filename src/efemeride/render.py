@@ -1,5 +1,6 @@
 """SVG rendering for efemeride."""
 
+from dataclasses import dataclass
 from pathlib import Path
 
 import drawsvg as draw
@@ -34,6 +35,19 @@ CONSTELLATION_STROKE_WIDTH = 0.6
 CONSTELLATION_LABEL_COLOR = "rgba(255,255,255,0.3)"
 
 
+@dataclass
+class GridStyle:
+    """Visual style for declination grid circles."""
+
+    stroke_color: str = "#335"
+    stroke_width: float = 0.5
+    stroke_opacity: float = 0.3
+    dash_array: str = "4,4"
+    label_color: str = "rgba(255,255,255,0.25)"
+    label_size: int = 9
+    show_labels: bool = True
+
+
 def norm_to_px(x: float, y: float) -> tuple[float, float]:
     """Convert normalised chart coordinates to SVG pixel coordinates."""
     px = SVG_CENTER + x * SVG_RADIUS
@@ -53,7 +67,7 @@ def _body_style(name: str) -> dict:
     return PLANET_STYLE.get(name, {"color": "#ffffff", "radius": 4})
 
 
-def render_chart(chart: SkyChart, title: str) -> str:
+def render_chart(chart: SkyChart, title: str, grid_style: GridStyle | None = None) -> str:
     d = draw.Drawing(SVG_SIZE, SVG_SIZE)
     d.width = "100%"
     d.height = "100%"
@@ -84,6 +98,44 @@ def render_chart(chart: SkyChart, title: str) -> str:
 
     # Title
     d.append(draw.Text(title, 14, SVG_CENTER, 18, fill="#778", font_family="sans-serif", text_anchor="middle"))
+
+    # Declination grid circles
+    if grid_style and chart.grid_circles:
+        for circle in chart.grid_circles:
+            for arc in circle.arcs:
+                if len(arc.points) < 2:
+                    continue
+                p = draw.Path(
+                    fill="none",
+                    stroke=grid_style.stroke_color,
+                    stroke_width=grid_style.stroke_width,
+                    stroke_opacity=grid_style.stroke_opacity,
+                    stroke_dasharray=grid_style.dash_array,
+                )
+                px0, py0 = norm_to_px(*arc.points[0])
+                p.M(px0, py0)
+                for x, y in arc.points[1:]:
+                    px, py = norm_to_px(x, y)
+                    p.L(px, py)
+                d.append(p)
+
+            # Label at midpoint of longest arc
+            if grid_style.show_labels and circle.arcs:
+                longest = max(circle.arcs, key=lambda a: len(a.points))
+                mid = longest.points[len(longest.points) // 2]
+                lx, ly = norm_to_px(mid[0], mid[1])
+                d.append(
+                    draw.Text(
+                        circle.label,
+                        grid_style.label_size,
+                        lx,
+                        ly,
+                        fill=grid_style.label_color,
+                        font_family="sans-serif",
+                        text_anchor="middle",
+                        dominant_baseline="middle",
+                    )
+                )
 
     # Constellation lines and labels
     for constellation in chart.constellations:
@@ -146,6 +198,7 @@ def render_charts(
     output_dir: Path,
     timestamp: str,
     effects: EffectParams | None = None,
+    grid_style: GridStyle | None = None,
 ) -> tuple[Path, Path]:
     """Write both SVG charts to output_dir and return their paths."""
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -153,7 +206,7 @@ def render_charts(
     visible_path = output_dir / f"{timestamp}_visible.svg"
     nonvisible_path = output_dir / f"{timestamp}_non-visible.svg"
 
-    visible_path.write_text(apply_effects(render_chart(visible, "Visible sky"), effects))
-    nonvisible_path.write_text(apply_effects(render_chart(nonvisible, "Non-visible sky"), effects))
+    visible_path.write_text(apply_effects(render_chart(visible, "Visible sky", grid_style), effects))
+    nonvisible_path.write_text(apply_effects(render_chart(nonvisible, "Non-visible sky", grid_style), effects))
 
     return visible_path, nonvisible_path
