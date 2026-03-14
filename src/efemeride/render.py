@@ -73,7 +73,7 @@ def render_chart(chart: SkyChart, title: str, grid_style: GridStyle | None = Non
     d.height = "100%"
 
     # Background
-    d.append(draw.Rectangle(0, 0, SVG_SIZE, SVG_SIZE, fill="#0a0a1a"))
+    d.append(draw.Rectangle(0, 0, SVG_SIZE, SVG_SIZE, fill="#ffffff"))
 
     # Horizon circle
     d.append(draw.Circle(SVG_CENTER, SVG_CENTER, SVG_RADIUS, fill="none", stroke="#334", stroke_width=1.5))
@@ -97,7 +97,7 @@ def render_chart(chart: SkyChart, title: str, grid_style: GridStyle | None = Non
         )
 
     # Title
-    d.append(draw.Text(title, 14, SVG_CENTER, 18, fill="#778", font_family="sans-serif", text_anchor="middle"))
+    # d.append(draw.Text(title, 14, SVG_CENTER, 18, fill="#778", font_family="sans-serif", text_anchor="middle"))
 
     # Declination grid circles
     if grid_style and chart.grid_circles:
@@ -120,22 +120,22 @@ def render_chart(chart: SkyChart, title: str, grid_style: GridStyle | None = Non
                 d.append(p)
 
             # Label at midpoint of longest arc
-            if grid_style.show_labels and circle.arcs:
-                longest = max(circle.arcs, key=lambda a: len(a.points))
-                mid = longest.points[len(longest.points) // 2]
-                lx, ly = norm_to_px(mid[0], mid[1])
-                d.append(
-                    draw.Text(
-                        circle.label,
-                        grid_style.label_size,
-                        lx,
-                        ly,
-                        fill=grid_style.label_color,
-                        font_family="sans-serif",
-                        text_anchor="middle",
-                        dominant_baseline="middle",
-                    )
-                )
+            # if grid_style.show_labels and circle.arcs:
+            #     longest = max(circle.arcs, key=lambda a: len(a.points))
+            #     mid = longest.points[len(longest.points) // 2]
+            #     lx, ly = norm_to_px(mid[0], mid[1])
+            #     d.append(
+            #         draw.Text(
+            #             circle.label,
+            #             grid_style.label_size,
+            #             lx,
+            #             ly,
+            #             fill=grid_style.label_color,
+            #             font_family="sans-serif",
+            #             text_anchor="middle",
+            #             dominant_baseline="middle",
+            #         )
+            #     )
 
     # Constellation lines and labels
     for constellation in chart.constellations:
@@ -151,43 +151,43 @@ def render_chart(chart: SkyChart, title: str, grid_style: GridStyle | None = Non
             )
             all_x.extend([px1, px2])
             all_y.extend([py1, py2])
-        cx = sum(all_x) / len(all_x)
-        cy = sum(all_y) / len(all_y)
-        d.append(
-            draw.Text(
-                constellation.abbr,
-                9,
-                cx,
-                cy,
-                fill=CONSTELLATION_LABEL_COLOR,
-                font_family="sans-serif",
-                text_anchor="middle",
-                dominant_baseline="middle",
-            )
-        )
+        # cx = sum(all_x) / len(all_x)
+        # cy = sum(all_y) / len(all_y)
+        # d.append(
+        #     draw.Text(
+        #         constellation.abbr,
+        #         9,
+        #         cx,
+        #         cy,
+        #         fill=CONSTELLATION_LABEL_COLOR,
+        #         font_family="sans-serif",
+        #         text_anchor="middle",
+        #         dominant_baseline="middle",
+        #     )
+        # )
 
     # Stars
     for star in chart.stars:
         px, py = norm_to_px(star.x, star.y)
         sr = star_radius(star.magnitude)
-        d.append(draw.Circle(px, py, sr, fill="#ffffff"))
+        d.append(draw.Circle(px, py, sr, fill="#000000"))
 
     # Bodies (Sun, Moon, planets)
     for body in chart.bodies:
         px, py = norm_to_px(body.x, body.y)
         style = _body_style(body.name)
         d.append(draw.Circle(px, py, style["radius"], fill=style["color"]))
-        d.append(
-            draw.Text(
-                body.name,
-                10,
-                px,
-                py - style["radius"] - 4,
-                fill=style["color"],
-                font_family="sans-serif",
-                text_anchor="middle",
-            )
-        )
+        # d.append(
+        #     draw.Text(
+        #         body.name,
+        #         10,
+        #         px,
+        #         py - style["radius"] - 4,
+        #         fill=style["color"],
+        #         font_family="sans-serif",
+        #         text_anchor="middle",
+        #     )
+        # )
 
     return d.as_svg()
 
@@ -206,7 +206,9 @@ def render_charts(
     visible_path = output_dir / f"{timestamp}_visible.svg"
     nonvisible_path = output_dir / f"{timestamp}_non-visible.svg"
 
-    visible_path.write_text(apply_effects(render_chart(visible, "Visible sky", grid_style), effects))
-    nonvisible_path.write_text(apply_effects(render_chart(nonvisible, "Non-visible sky", grid_style), effects))
+    # visible_path.write_text(apply_effects(render_chart(visible, "Visible sky", grid_style), effects))
+    # nonvisible_path.write_text(apply_effects(render_chart(nonvisible, "Non-visible sky", grid_style), effects))
+    visible_path.write_text(render_chart(visible, "Visible sky", grid_style))
+    nonvisible_path.write_text(render_chart(nonvisible, "Non-visible sky", grid_style))
 
     return visible_path, nonvisible_path
