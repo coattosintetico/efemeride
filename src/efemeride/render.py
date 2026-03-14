@@ -11,7 +11,7 @@ from efemeride.effects import EffectParams, apply_effects
 
 SVG_CHART_SIZE = 800
 SVG_CHART_CENTER = SVG_CHART_SIZE / 2
-SVG_CHART_RADIUS = SVG_CHART_SIZE * 0.47
+SVG_CHART_RADIUS = SVG_CHART_SIZE * 0.495
 
 # SVG_POSTER_SIZE = 
 
@@ -96,22 +96,22 @@ def render_chart(chart: SkyChart, title: str, grid_style: GridStyle | None = Non
     d.append(dw.Circle(SVG_CHART_CENTER, SVG_CHART_CENTER, SVG_CHART_RADIUS, fill="none", stroke="#334", stroke_width=1.5))
 
     # Compass labels
-    label_offset = SVG_CHART_RADIUS + 16
-    for label, dx, dy in [("N", 0, -1), ("S", 0, 1), ("E", -1, 0), ("W", 1, 0)]:
-        lx = SVG_CHART_CENTER + dx * label_offset
-        ly = SVG_CHART_CENTER + dy * label_offset
-        d.append(
-            dw.Text(
-                label,
-                13,
-                lx,
-                ly,
-                fill="#556",
-                font_family="sans-serif",
-                text_anchor="middle",
-                dominant_baseline="middle",
-            )
-        )
+    # label_offset = SVG_CHART_RADIUS + 16
+    # for label, dx, dy in [("N", 0, -1), ("S", 0, 1), ("E", -1, 0), ("W", 1, 0)]:
+    #     lx = SVG_CHART_CENTER + dx * label_offset
+    #     ly = SVG_CHART_CENTER + dy * label_offset
+    #     d.append(
+    #         dw.Text(
+    #             label,
+    #             13,
+    #             lx,
+    #             ly,
+    #             fill="#556",
+    #             font_family="sans-serif",
+    #             text_anchor="middle",
+    #             dominant_baseline="middle",
+    #         )
+    #     )
 
     # Title
     # d.append(dw.Text(title, 14, SVG_CENTER, 18, fill="#778", font_family="sans-serif", text_anchor="middle"))
@@ -236,31 +236,31 @@ def render_charts(
 # -- Poster merge ----------------------------------------------------------
 
 # A2 portrait dimensions in mm
-A2_WIDTH_MM = 420
-A2_HEIGHT_MM = 594
+POSTER_WIDTH = 420
+POSTER_HEIGHT = 594
 
 
 def merge_poster(
     visible_svg: str,
     nonvisible_svg: str,
     *,
-    margin_mm: float = 20,
-    gap_mm: float = 20,
+    margin_mm: float = 10,
+    gap_mm: float = 10,
 ) -> str:
     """Merge two chart SVGs into a single A2 portrait poster SVG."""
-    usable_w = A2_WIDTH_MM - 2 * margin_mm
-    usable_h = A2_HEIGHT_MM - 2 * margin_mm - gap_mm
+    usable_w = POSTER_WIDTH - 2 * margin_mm
+    usable_h = POSTER_HEIGHT - 2 * margin_mm - gap_mm
     chart_size = min(usable_w, usable_h / 2)
 
-    x = (A2_WIDTH_MM - chart_size) / 2
+    x = (POSTER_WIDTH - chart_size) / 2
     y_top = margin_mm
     y_bottom = margin_mm + chart_size + gap_mm
 
     # Build outer poster SVG with drawsvg (handles namespaces, headers, defs)
-    poster = dw.Drawing(A2_WIDTH_MM, A2_HEIGHT_MM)
-    poster.width = f"{A2_WIDTH_MM}mm"
-    poster.height = f"{A2_HEIGHT_MM}mm"
-    poster.append(dw.Rectangle(0, 0, A2_WIDTH_MM, A2_HEIGHT_MM, fill="#ffffff"))
+    poster = dw.Drawing(POSTER_WIDTH, POSTER_HEIGHT)
+    poster.width = f"{POSTER_WIDTH}mm"
+    poster.height = f"{POSTER_HEIGHT}mm"
+    poster.append(dw.Rectangle(0, 0, POSTER_WIDTH, POSTER_HEIGHT, fill="#ffffff"))
 
     # Parse the outer SVG and inject charts as nested <svg> elements
     ET.register_namespace("", "http://www.w3.org/2000/svg")
