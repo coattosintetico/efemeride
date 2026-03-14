@@ -26,7 +26,7 @@ def chart(
     lat: float = typer.Option(DEFAULT_LAT, help="Observer latitude"),
     lon: float = typer.Option(DEFAULT_LON, help="Observer longitude"),
     time: Optional[str] = typer.Option(None, help="ISO 8601 datetime string (default: now UTC)"),
-    mag_limit: float = typer.Option(5.5, help="Maximum (faintest) magnitude to include for stars"),
+    mag_limit: float = typer.Option(6.5, help="Maximum (faintest) magnitude to include for stars"),
     output: Path = typer.Option(Path("./output/"), "-o", help="Output directory"),
     open: bool = typer.Option(True, "--open", help="Open output files with xdg-open after generation"),
     # Visual effects

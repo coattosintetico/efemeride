@@ -53,6 +53,7 @@ class SkyChart(BaseModel):
     bodies: list[BodyPoint] = []
     constellations: list[Constellation] = []
     grid_circles: list[GridCircle] = []
+    mag_limit: float
 
 
 PLANETS = {
@@ -313,8 +314,8 @@ def compute_charts(
     earth = eph["earth"]
     location = earth + observer
 
-    visible = SkyChart()
-    nonvisible = SkyChart()
+    visible = SkyChart(mag_limit=mag_limit)
+    nonvisible = SkyChart(mag_limit=mag_limit)
 
     # Sun and Moon
     for name, target_name in [("Sun", "sun"), ("Moon", "moon")]:

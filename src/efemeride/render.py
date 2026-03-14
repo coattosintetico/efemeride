@@ -24,11 +24,14 @@ PLANET_STYLE: dict[str, dict] = {
 SUN_STYLE = {"color": "#ffe033", "radius": 12}
 MOON_STYLE = {"color": "#d0d0d0", "radius": 10}
 
-# this value controls how big the stars are being rendered (proportionally)
-MAG_BASE = 10.0
-# this avoids negative, zero or too small denominators that would cause a blow up of the radius
-# (e.g. sirius has -1.46 mag)
-MAG_OFFSET = 2.0
+# Brightest magnitude we expect (Sirius is -1.46)
+MAG_BRIGHTEST = -1.5
+# Rendered radius range (in SVG viewBox units)
+STAR_RADIUS_MAX = 3.5
+STAR_RADIUS_MIN = 0.3
+# Opacity range
+STAR_OPACITY_MAX = 1.0
+STAR_OPACITY_MIN = 0.15
 
 CONSTELLATION_STROKE = "#1a3a5c"
 CONSTELLATION_STROKE_WIDTH = 0.6
@@ -55,8 +58,19 @@ def norm_to_px(x: float, y: float) -> tuple[float, float]:
     return px, py
 
 
-def star_radius(magnitude: float) -> float:
-    return max(0.5, MAG_BASE / (magnitude + MAG_OFFSET))
+def _star_t(magnitude: float, mag_limit: float) -> float:
+    """Return 0.0 for the brightest star, 1.0 for a star at mag_limit."""
+    return (magnitude - MAG_BRIGHTEST) / (mag_limit - MAG_BRIGHTEST)
+
+
+def star_radius(magnitude: float, mag_limit: float) -> float:
+    t = _star_t(magnitude, mag_limit)
+    return STAR_RADIUS_MAX + t * (STAR_RADIUS_MIN - STAR_RADIUS_MAX)
+
+
+def star_opacity(magnitude: float, mag_limit: float) -> float:
+    t = _star_t(magnitude, mag_limit)**2
+    return STAR_OPACITY_MAX + t * (STAR_OPACITY_MIN - STAR_OPACITY_MAX)
 
 
 def _body_style(name: str) -> dict:
@@ -169,8 +183,9 @@ def render_chart(chart: SkyChart, title: str, grid_style: GridStyle | None = Non
     # Stars
     for star in chart.stars:
         px, py = norm_to_px(star.x, star.y)
-        sr = star_radius(star.magnitude)
-        d.append(draw.Circle(px, py, sr, fill="#000000"))
+        sr = star_radius(star.magnitude, chart.mag_limit)
+        so = star_opacity(star.magnitude, chart.mag_limit)
+        d.append(draw.Circle(px, py, sr, fill="#000000", fill_opacity=so))
 
     # Bodies (Sun, Moon, planets)
     for body in chart.bodies:
