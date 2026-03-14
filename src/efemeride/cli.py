@@ -9,7 +9,7 @@ import typer
 
 from efemeride.core import compute_charts
 from efemeride.effects import EffectParams, apply_effects
-from efemeride.render import SVG_SIZE, GridStyle, render_charts
+from efemeride.render import SVG_CHART_SIZE, GridStyle, render_charts
 
 app = typer.Typer(
     name="efemeride",
@@ -60,12 +60,12 @@ def chart(
         scene_bloom=scene_bloom,
         constellation_opacity=constellation_opacity,
     )
-    p1, p2 = render_charts(visible, nonvisible, output, timestamp, effects, grid_style)
+    p1, p2, poster = render_charts(visible, nonvisible, output, timestamp, effects, grid_style)
     typer.echo(f"Wrote {p1}")
     typer.echo(f"Wrote {p2}")
+    typer.echo(f"Wrote {poster}")
     if open:
-        for path in (p1, p2):
-            subprocess.Popen(["xdg-open", path.resolve().as_uri()])
+        subprocess.Popen(["xdg-open", poster.resolve().as_uri()])
 
 
 def main() -> None:

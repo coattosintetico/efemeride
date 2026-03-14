@@ -1,16 +1,19 @@
 """SVG rendering for efemeride."""
 
+import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from pathlib import Path
 
-import drawsvg as draw
+import drawsvg as dw
 
 from efemeride.core import SkyChart
 from efemeride.effects import EffectParams, apply_effects
 
-SVG_SIZE = 800
-SVG_CENTER = SVG_SIZE / 2
-SVG_RADIUS = SVG_SIZE * 0.47
+SVG_CHART_SIZE = 800
+SVG_CHART_CENTER = SVG_CHART_SIZE / 2
+SVG_CHART_RADIUS = SVG_CHART_SIZE * 0.47
+
+# SVG_POSTER_SIZE = 
 
 PLANET_STYLE: dict[str, dict] = {
     "Mercury": {"color": "#b0b0b0", "radius": 4},
@@ -53,8 +56,8 @@ class GridStyle:
 
 def norm_to_px(x: float, y: float) -> tuple[float, float]:
     """Convert normalised chart coordinates to SVG pixel coordinates."""
-    px = SVG_CENTER + x * SVG_RADIUS
-    py = SVG_CENTER - y * SVG_RADIUS  # flip Y for SVG
+    px = SVG_CHART_CENTER + x * SVG_CHART_RADIUS
+    py = SVG_CHART_CENTER - y * SVG_CHART_RADIUS  # flip Y for SVG
     return px, py
 
 
@@ -69,7 +72,7 @@ def star_radius(magnitude: float, mag_limit: float) -> float:
 
 
 def star_opacity(magnitude: float, mag_limit: float) -> float:
-    t = _star_t(magnitude, mag_limit)**2
+    t = _star_t(magnitude, mag_limit) ** 2
     return STAR_OPACITY_MAX + t * (STAR_OPACITY_MIN - STAR_OPACITY_MAX)
 
 
@@ -81,24 +84,24 @@ def _body_style(name: str) -> dict:
     return PLANET_STYLE.get(name, {"color": "#ffffff", "radius": 4})
 
 
-def render_chart(chart: SkyChart, title: str, grid_style: GridStyle | None = None) -> str:
-    d = draw.Drawing(SVG_SIZE, SVG_SIZE)
+def render_chart(chart: SkyChart, title: str, grid_style: GridStyle | None = None) -> dw.drawing.Drawing:
+    d = dw.Drawing(SVG_CHART_SIZE, SVG_CHART_SIZE)
     d.width = "100%"
     d.height = "100%"
 
     # Background
-    d.append(draw.Rectangle(0, 0, SVG_SIZE, SVG_SIZE, fill="#ffffff"))
+    d.append(dw.Rectangle(0, 0, SVG_CHART_SIZE, SVG_CHART_SIZE, fill="#ffffff"))
 
     # Horizon circle
-    d.append(draw.Circle(SVG_CENTER, SVG_CENTER, SVG_RADIUS, fill="none", stroke="#334", stroke_width=1.5))
+    d.append(dw.Circle(SVG_CHART_CENTER, SVG_CHART_CENTER, SVG_CHART_RADIUS, fill="none", stroke="#334", stroke_width=1.5))
 
     # Compass labels
-    label_offset = SVG_RADIUS + 16
+    label_offset = SVG_CHART_RADIUS + 16
     for label, dx, dy in [("N", 0, -1), ("S", 0, 1), ("E", -1, 0), ("W", 1, 0)]:
-        lx = SVG_CENTER + dx * label_offset
-        ly = SVG_CENTER + dy * label_offset
+        lx = SVG_CHART_CENTER + dx * label_offset
+        ly = SVG_CHART_CENTER + dy * label_offset
         d.append(
-            draw.Text(
+            dw.Text(
                 label,
                 13,
                 lx,
@@ -111,7 +114,7 @@ def render_chart(chart: SkyChart, title: str, grid_style: GridStyle | None = Non
         )
 
     # Title
-    # d.append(draw.Text(title, 14, SVG_CENTER, 18, fill="#778", font_family="sans-serif", text_anchor="middle"))
+    # d.append(dw.Text(title, 14, SVG_CENTER, 18, fill="#778", font_family="sans-serif", text_anchor="middle"))
 
     # Declination grid circles
     if grid_style and chart.grid_circles:
@@ -119,7 +122,7 @@ def render_chart(chart: SkyChart, title: str, grid_style: GridStyle | None = Non
             for arc in circle.arcs:
                 if len(arc.points) < 2:
                     continue
-                p = draw.Path(
+                p = dw.Path(
                     fill="none",
                     stroke=grid_style.stroke_color,
                     stroke_width=grid_style.stroke_width,
@@ -139,7 +142,7 @@ def render_chart(chart: SkyChart, title: str, grid_style: GridStyle | None = Non
             #     mid = longest.points[len(longest.points) // 2]
             #     lx, ly = norm_to_px(mid[0], mid[1])
             #     d.append(
-            #         draw.Text(
+            #         dw.Text(
             #             circle.label,
             #             grid_style.label_size,
             #             lx,
@@ -160,15 +163,13 @@ def render_chart(chart: SkyChart, title: str, grid_style: GridStyle | None = Non
         for seg in constellation.segments:
             px1, py1 = norm_to_px(seg.x1, seg.y1)
             px2, py2 = norm_to_px(seg.x2, seg.y2)
-            d.append(
-                draw.Line(px1, py1, px2, py2, stroke=CONSTELLATION_STROKE, stroke_width=CONSTELLATION_STROKE_WIDTH)
-            )
+            d.append(dw.Line(px1, py1, px2, py2, stroke=CONSTELLATION_STROKE, stroke_width=CONSTELLATION_STROKE_WIDTH))
             all_x.extend([px1, px2])
             all_y.extend([py1, py2])
         # cx = sum(all_x) / len(all_x)
         # cy = sum(all_y) / len(all_y)
         # d.append(
-        #     draw.Text(
+        #     dw.Text(
         #         constellation.abbr,
         #         9,
         #         cx,
@@ -185,15 +186,15 @@ def render_chart(chart: SkyChart, title: str, grid_style: GridStyle | None = Non
         px, py = norm_to_px(star.x, star.y)
         sr = star_radius(star.magnitude, chart.mag_limit)
         so = star_opacity(star.magnitude, chart.mag_limit)
-        d.append(draw.Circle(px, py, sr, fill="#000000", fill_opacity=so))
+        d.append(dw.Circle(px, py, sr, fill="#000000", fill_opacity=so))
 
     # Bodies (Sun, Moon, planets)
     for body in chart.bodies:
         px, py = norm_to_px(body.x, body.y)
         style = _body_style(body.name)
-        d.append(draw.Circle(px, py, style["radius"], fill=style["color"]))
+        d.append(dw.Circle(px, py, style["radius"], fill=style["color"]))
         # d.append(
-        #     draw.Text(
+        #     dw.Text(
         #         body.name,
         #         10,
         #         px,
@@ -204,7 +205,7 @@ def render_chart(chart: SkyChart, title: str, grid_style: GridStyle | None = Non
         #     )
         # )
 
-    return d.as_svg()
+    return d
 
 
 def render_charts(
@@ -214,16 +215,64 @@ def render_charts(
     timestamp: str,
     effects: EffectParams | None = None,
     grid_style: GridStyle | None = None,
-) -> tuple[Path, Path]:
-    """Write both SVG charts to output_dir and return their paths."""
+) -> tuple[Path, Path, Path]:
+    """Write individual chart SVGs and a merged poster to output_dir."""
     output_dir.mkdir(parents=True, exist_ok=True)
+
+    visible_svg = render_chart(visible, "Visible sky", grid_style).as_svg()
+    nonvisible_svg = render_chart(nonvisible, "Non-visible sky", grid_style).as_svg()
 
     visible_path = output_dir / f"{timestamp}_visible.svg"
     nonvisible_path = output_dir / f"{timestamp}_non-visible.svg"
+    poster_path = output_dir / f"{timestamp}_poster.svg"
 
-    # visible_path.write_text(apply_effects(render_chart(visible, "Visible sky", grid_style), effects))
-    # nonvisible_path.write_text(apply_effects(render_chart(nonvisible, "Non-visible sky", grid_style), effects))
-    visible_path.write_text(render_chart(visible, "Visible sky", grid_style))
-    nonvisible_path.write_text(render_chart(nonvisible, "Non-visible sky", grid_style))
+    visible_path.write_text(visible_svg)
+    nonvisible_path.write_text(nonvisible_svg)
+    poster_path.write_text(merge_poster(visible_svg, nonvisible_svg))
 
-    return visible_path, nonvisible_path
+    return visible_path, nonvisible_path, poster_path
+
+
+# -- Poster merge ----------------------------------------------------------
+
+# A2 portrait dimensions in mm
+A2_WIDTH_MM = 420
+A2_HEIGHT_MM = 594
+
+
+def merge_poster(
+    visible_svg: str,
+    nonvisible_svg: str,
+    *,
+    margin_mm: float = 20,
+    gap_mm: float = 20,
+) -> str:
+    """Merge two chart SVGs into a single A2 portrait poster SVG."""
+    usable_w = A2_WIDTH_MM - 2 * margin_mm
+    usable_h = A2_HEIGHT_MM - 2 * margin_mm - gap_mm
+    chart_size = min(usable_w, usable_h / 2)
+
+    x = (A2_WIDTH_MM - chart_size) / 2
+    y_top = margin_mm
+    y_bottom = margin_mm + chart_size + gap_mm
+
+    # Build outer poster SVG with drawsvg (handles namespaces, headers, defs)
+    poster = dw.Drawing(A2_WIDTH_MM, A2_HEIGHT_MM)
+    poster.width = f"{A2_WIDTH_MM}mm"
+    poster.height = f"{A2_HEIGHT_MM}mm"
+    poster.append(dw.Rectangle(0, 0, A2_WIDTH_MM, A2_HEIGHT_MM, fill="#ffffff"))
+
+    # Parse the outer SVG and inject charts as nested <svg> elements
+    ET.register_namespace("", "http://www.w3.org/2000/svg")
+    ET.register_namespace("xlink", "http://www.w3.org/1999/xlink")
+    outer = ET.fromstring(poster.as_svg())
+
+    for svg_str, y in [(visible_svg, y_top), (nonvisible_svg, y_bottom)]:
+        root = ET.fromstring(svg_str)
+        root.set("x", str(x))
+        root.set("y", str(y))
+        root.set("width", str(chart_size))
+        root.set("height", str(chart_size))
+        outer.append(root)
+
+    return ET.tostring(outer, encoding="unicode", xml_declaration=True)
