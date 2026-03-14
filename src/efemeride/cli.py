@@ -28,7 +28,7 @@ def chart(
     time: Optional[str] = typer.Option(None, help="ISO 8601 datetime string (default: now UTC)"),
     mag_limit: float = typer.Option(5.5, help="Maximum (faintest) magnitude to include for stars"),
     output: Path = typer.Option(Path("./output/"), "-o", help="Output directory"),
-    open_browser: bool = typer.Option(False, "--open", help="Open output files in brave-browser"),
+    open: bool = typer.Option(True, "--open", help="Open output files with xdg-open after generation"),
     # Visual effects
     star_glow: float = typer.Option(3.0, help="Star glow blur radius (0=off, try 2-6)"),
     body_glow: float = typer.Option(5.0, help="Body glow blur radius (0=off, try 3-8)"),
@@ -63,10 +63,9 @@ def chart(
     p1, p2 = render_charts(visible, nonvisible, output, timestamp, effects, grid_style)
     typer.echo(f"Wrote {p1}")
     typer.echo(f"Wrote {p2}")
-    if open_browser:
-        size = f"--window-size={SVG_SIZE},{SVG_SIZE}"
+    if open:
         for path in (p1, p2):
-            subprocess.Popen(["brave-browser", "--new-window", size, path.resolve().as_uri()])
+            subprocess.Popen(["xdg-open", path.resolve().as_uri()])
 
 
 def main() -> None:

@@ -30,7 +30,7 @@ test:
 
 # Run the chart command with defaults and open output in brave-browser
 run *args:
-    uv run efemeride --open {{args}}
+    uv run efemeride {{args}}
 
 # Open the last two generated SVGs in Brave
 open:
