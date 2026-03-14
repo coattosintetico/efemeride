@@ -55,3 +55,8 @@ Set up the development environment:
 ```bash
 just sync-dev
 ```
+
+# Links
+
+- [drawsvg github](https://github.com/cduck/drawsvg)
+- [drawsvg quick reference](https://cduck.github.io/drawsvg)
