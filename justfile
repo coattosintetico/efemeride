@@ -40,3 +40,7 @@ open:
 clean:
     rm -rf dist/ build/ *.egg-info .ruff_cache .pytest_cache
     find . -type d -name __pycache__ -exec rm -rf {} +
+
+# Run the playground.py script
+experiment:
+    uv run python scripts/playground.py
